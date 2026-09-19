@@ -1,1 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Family Plan Tracker</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#eee;background:#101114}*{box-sizing:border-box}body{margin:0}.app{max-width:900px;margin:auto;padding:18px}.card{background:#181a1f;border:1px solid #30333a;border-radius:14px;padding:16px;margin-bottom:14px}h1,h2,p{margin:0}.sub,.muted{color:#999}.top,.actions,.controls,.planbar,.add{display:flex;gap:9px;align-items:end;justify-content:space-between;flex-wrap:wrap}label{display:flex;flex-direction:column;gap:5px;color:#aaa;font-size:13px}input,button,select{font:inherit;color:#eee;background:#111318;border:1px solid #3a3d45;border-radius:9px;padding:9px 11px}button{cursor:pointer}.primary{background:#eee;color:#111}.danger{color:#ff9b9b}.planbar select{min-width:230px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.stat{background:#181a1f;border:1px solid #30333a;border-radius:12px;padding:12px}.stat small{color:#999}.stat strong{display:block;font-size:20px;margin-top:3px}.member{display:grid;grid-template-columns:1fr auto auto;gap:9px;align-items:center;padding:11px 0;border-bottom:1px solid #292c32}.member:last-child{border:0}.paid{color:#8ee6a4;font-size:13px}.pending{color:#ffcf70;font-size:13px}.add{margin-top:12px}.add input{flex:1;min-width:150px}.history{max-height:360px;overflow:auto}.hist{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:9px 0;border-bottom:1px solid #292c32;font-size:14px}.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.chip{border:1px solid #333740;border-radius:99px;padding:4px 8px;font-size:12px;color:#bbb}@media(max-width:650px){.stats{grid-template-columns:1fr 1fr}.member{grid-template-columns:1fr auto}.member .remove{grid-column:2}.hist{grid-template-columns:1fr auto}.app{padding:12px}}
+</style>
+</head>
+<body><main class="app">
 
+<section class="card"><div class="top"><div><h1>Family Plan Tracker</h1><p class="sub">Manage multiple subscriptions independently</p></div><div class="actions"><button id="export">Export backup</button><button id="import">Import backup</button><input id="file" type="file" accept=".json" hidden></div></div></section>
+
+<section class="card">
+<div class="planbar">
+<label style="flex:1">Plan<select id="plans"></select></label>
+<button id="new" class="primary">Add plan</button><button id="del" class="danger">Delete plan</button>
+</div>
+<div id="meta" class="chips"></div>
+</section>
+
+<section class="card"><div class="top"><div><h2 id="title"></h2><p class="sub">Payment month</p></div><div class="controls"><label>Month<input id="month" type="month"></label><label>Total monthly cost (₹)<input id="cost" type="number" min="0" step="0.01"></label></div></div></section>
+
+<section class="stats">
+<div class="stat"><small>Members</small><strong id="mc">0</strong></div><div class="stat"><small>Collected</small><strong id="col">₹0</strong></div><div class="stat"><small>Pending</small><strong id="pen">₹0</strong></div><div class="stat"><small>Per member</small><strong id="ppm">₹0</strong></div>
+</section>
+
+<section class="card"><div class="top"><h2>Members</h2><span id="pc" class="muted"></span></div><div id="members"></div><form id="add" class="add"><input id="name" maxlength="40" placeholder="Friend's name" required><button class="primary">Add</button></form></section>
+
+<section class="card"><div class="top"><h2>Payment history</h2><span class="muted">Current plan</span></div><div id="history" class="history"></div></section>
+
+<section class="card"><h2>Data</h2><p class="sub" style="margin-top:7px">Stored in this browser. Export a backup regularly.</p><div class="actions" style="margin-top:12px"><button id="reset">Reset current month</button><button id="clear" class="danger">Delete all data</button></div></section>
+
+<script>
+(()=>{const K='family-plan-tracker-v3',q=x=>document.getElementById(x),d=new Date(),cur=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const mk=(id,name,cost,n)=>({id,name,cost,members:Array.from({length:n},(_,i)=>({id:id+'-'+(i+1),name:'Friend '+(i+1)})),payments:{}});
+let data={selected:'spotify',plans:[mk('spotify','Spotify Family',150,5),mk('torbox','TorBox Family',150,5)]};
+try{let x=JSON.parse(localStorage.getItem(K));if(x&&x.plans?.length)data=x}catch{}
+q('month').value=cur;
+const plan=()=>data.plans.find(x=>x.id===data.selected)||data.plans[0],save=()=>localStorage.setItem(K,JSON.stringify(data)),money=x=>'₹'+Number(x||0).toLocaleString('en-IN',{maximumFractionDigits:2}),ml=x=>new Date(+x.slice(0,4),+x.slice(5)-1,1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+function render(){let p=plan(),m=q('month').value||cur,ppm=p.members.length?p.cost/p.members.length:0,paid=p.members.filter(x=>p.payments[m+'|'+x.id]);q('plans').innerHTML=data.plans.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join('');q('plans').value=p.id;q('title').textContent=p.name;q('cost').value=p.cost;q('mc').textContent=p.members.length;q('col').textContent=money(paid.length*ppm);q('pen').textContent=money((p.members.length-paid.length)*ppm);q('ppm').textContent=money(ppm);q('pc').textContent=paid.length+'/'+p.members.length+' paid';q('meta').innerHTML='<span class="chip">Total: '+money(p.cost)+'/month</span><span class="chip">'+p.members.length+' members</span><span class="chip">'+money(ppm)+' each</span>';
+let box=q('members');box.innerHTML='';p.members.forEach(x=>{let k=m+'|'+x.id,yes=!!p.payments[k],r=document.createElement('div');r.className='member';r.innerHTML='<div><b></b><div class="'+(yes?'paid':'pending')+'">'+(yes?'Paid':'Pending')+' · '+money(ppm)+'</div></div><button class="toggle">'+(yes?'Mark pending':'Mark paid')+'</button><button class="remove danger">Remove</button>';r.querySelector('b').textContent=x.name;r.querySelector('.toggle').onclick=()=>{if(yes)delete p.payments[k];else p.payments[k]={amount:ppm,date:new Date().toISOString()};save();render()};r.querySelector('.remove').onclick=()=>{if(confirm('Remove '+x.name+' from '+p.name+' and delete their history?')){p.members=p.members.filter(y=>y.id!==x.id);Object.keys(p.payments).filter(y=>y.endsWith('|'+x.id)).forEach(y=>delete p.payments[y]);save();render()}};box.append(r)});
+let e=[];Object.entries(p.payments).forEach(([k,v])=>{let [mo,id]=k.split('|'),x=p.members.find(y=>String(y.id)===String(id));if(x)e.push({mo,name:x.name,v})});e.sort((a,b)=>b.v.date.localeCompare(a.v.date));q('history').innerHTML=e.length?e.map(x=>'<div class="hist"><span>'+ml(x.mo)+'</span><span>'+x.name+'</span><span>'+money(x.v.amount)+' · '+new Date(x.v.date).toLocaleDateString('en-IN')+'</span></div>').join(''):'<p class="muted">No payments recorded for this plan.</p>';save()}
+q('plans').onchange=e=>{data.selected=e.target.value;save();render()};q('month').onchange=render;q('cost').oninput=e=>{plan().cost=Math.max(0,+e.target.value||0);save();render()};
+q('add').onsubmit=e=>{e.preventDefault();let n=q('name').value.trim();if(!n)return;plan().members.push({id:crypto.randomUUID?crypto.randomUUID():Date.now()+Math.random(),name:n});q('name').value='';save();render()};
+q('new').onclick=()=>{let n=prompt('Plan name:'),c=+prompt('Total monthly cost in ₹:','150'),num=+prompt('Number of members:','5');if(!n||!Number.isFinite(c)||c<0||!Number.isInteger(num)||num<1||num>50)return alert('Invalid plan details.');let id='p'+Date.now();data.plans.push(mk(id,n.trim(),c,num));data.selected=id;save();render()};
+q('del').onclick=()=>{let p=plan();if(data.plans.length===1)return alert('Keep at least one plan.');if(confirm('Delete '+p.name+' and all its history?')){data.plans=data.plans.filter(x=>x.id!==p.id);data.selected=data.plans[0].id;save();render()}};
+q('reset').onclick=()=>{let p=plan(),m=q('month').value;if(confirm('Reset '+ml(m)+' for '+p.name+'?')){Object.keys(p.payments).filter(k=>k.startsWith(m+'|')).forEach(k=>delete p.payments[k]);save();render()}};
+q('clear').onclick=()=>{if(confirm('Delete ALL plans and payment history?')){localStorage.removeItem(K);location.reload()}};
+q('export').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='family-plan-backup-'+cur+'.json';a.click();URL.revokeObjectURL(a.href)};
+q('import').onclick=()=>q('file').click();q('file').onchange=async e=>{try{let x=JSON.parse(await e.target.files[0].text());if(!x.plans?.length)throw 0;data=x;save();render();alert('Backup imported.')}catch{alert('Invalid backup file.')}e.target.value=''};render()})()
+</script></main></body></html>
